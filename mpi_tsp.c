@@ -75,7 +75,7 @@ int main(void) {
     MPI_Reduce(&localMin, &globalMin, 1, MPI_INT, MPI_MIN, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
-        printf("%d\n", globalMin);
+        printf("shortest path: %d\n", globalMin);
     }
 
     MPI_Finalize();
