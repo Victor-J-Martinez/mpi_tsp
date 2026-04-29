@@ -35,13 +35,17 @@ static int branch_and_bound(int n, int cost[n][n], int vis[], int last, int cnt,
     // int myrank;
     // MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
+    // Prune this path if current cost + lower bound of remaining path is greater than or equal to the best cost found so far
     int remainingEdges = n - cnt + 1;
     if (curCost + remainingEdges * minEdge >= *best)
         return *best;
 
+    // Base case
     if (cnt == n)
     {
+        // calculate the cost of returning to the starting city to complete the tour
         int tourCost = curCost + cost[last][0];
+        // update the best cost if this tour is better than the best found so far
         if (tourCost < *best)
             *best = tourCost;
         return tourCost;
@@ -49,10 +53,14 @@ static int branch_and_bound(int n, int cost[n][n], int vis[], int last, int cnt,
 
     for (int city = 1; city < n; city++)
     {
+        // if the city hasn't been visited.
         if (!vis[city])
         {
+            // calculate the cost of visiting this city from the last city
             int nextCost = curCost + cost[last][city];
+            // calculate the lower bound of the cost to complete the tour if we visit this city next
             int lowerBound = nextCost + (n - cnt) * minEdge;
+            // if the lower bound is greater than or equal to the best cost found so far, prune this path
             if (lowerBound >= *best)
                 continue;
 
@@ -79,6 +87,7 @@ int parallel_tsp(int n, int cost[n][n], int rank, int nprocs)
 
     for (int city = 1; city < n; city++)
     {
+        // Use modulo to distribute the cities among the processes/ranks.
         if (((city - 1) % nprocs) == rank)
         {
             // //print which rank is processing which city
@@ -118,6 +127,7 @@ int main(void)
         start = MPI_Wtime();
     }
 
+    // Broadcast the cost matrix to all processes
     MPI_Bcast(&cost[0][0], 4 * 4, MPI_INT, 0, MPI_COMM_WORLD);
 
     // TSP function returns the minimum cost of the TSP tour

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <mpi.h> /* Include MPI's header file */
 
+// Return the minimum of two integers
 static int min_int(int a, int b)
 {
     return (a < b) ? a : b;
@@ -10,45 +11,61 @@ static int min_int(int a, int b)
 
 int dfs(int n, int cost[n][n], int vis[], int last, int cnt)
 {
-    int myrank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+    // int myrank;
+    // MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+
+    // Base case: if all cities have been visited, return the cost to return to the starting city
     if (cnt == n)
         return cost[last][0];
 
     int minCost = 1000000000;
 
+    // Recursive case: try visiting each unvisited city and calculate the cost
     for (int city = 1; city < n; city++)
     {
+        // If the city has not been visited, visit it and calculate the cost of the path through that city
         if (!vis[city])
         {
+            // Mark the city as visited
             vis[city] = 1;
             // printf("dfs; RANK %d in city: %d\n", myrank, city);
             // printf("cost from last city(%d) to city(%d): %d\n", last, city, cost[last][city]);
+
             int candidate = cost[last][city] + dfs(n, cost, vis, city, cnt + 1);
+            // Compare the cost of the path through this city with the minimum cost found so far.
             minCost = min_int(minCost, candidate);
+            // Backtrack: unmark the city as visited for the next iteration
             vis[city] = 0;
         }
     }
 
+    // Return the minimum cost found for this path
     return minCost;
 }
 
+// Parallel TSP function that divides the work among processes
 int parallel_tsp(int n, int cost[n][n], int rank, int nprocs)
 {
+    // Make an array to keep track of visited cities, initialized to 0 (not visited)
     int vis[n];
     memset(vis, 0, sizeof(vis));
+
+    // Mark the starting city (0) as visited
     vis[0] = 1;
 
     int localMin = 1000000000;
 
     for (int city = 1; city < n; city++)
     {
+        // Use modulo to distribute the cities among the processes/ranks.
         if (((city - 1) % nprocs) == rank)
         {
+            // Mark the city as visited
             vis[city] = 1;
-            printf("PAR_TSP; RANK %d in city: %d\n", rank, city);
+            // printf("PAR_TSP; RANK %d in city: %d\n", rank, city);
 
-            printf("cost from last city(%d) to city(%d): %d\n", 0, city, cost[0][city]);
+            // printf("cost from last city(%d) to city(%d): %d\n", 0, city, cost[0][city]);
+            // Call the DFS function to calculate the cost of the path through this city and update the local minimum cost
             int candidate = cost[0][city] + dfs(n, cost, vis, city, 2);
             localMin = min_int(localMin, candidate);
             vis[city] = 0;
@@ -79,6 +96,7 @@ int main(void)
         start = MPI_Wtime();
     }
 
+    // Broadcast the cost matrix to all processes
     MPI_Bcast(&cost[0][0], 4 * 4, MPI_INT, 0, MPI_COMM_WORLD);
     
     // TSP function returns the minimum cost of the TSP tour
